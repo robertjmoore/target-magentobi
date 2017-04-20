@@ -28,7 +28,7 @@ class Buffer(object):
         self._queue.append(BufferEntry(timestamp=time.time()*1000,
                                        value=value,
                                        callback_arg=callback_arg))
-        self._available_bytes += len(value.encode("utf8"))
+        self._available_bytes += len(value)
 
     def take(self, batch_size_bytes, batch_delay_millis):
         if len(self._queue) == 0:
@@ -48,13 +48,13 @@ class Buffer(object):
         size = 2
 
         while (len(self._queue) > 0 and
-               size + len(self._queue[0].value.encode("utf8")) <
+               size + len(self._queue[0].value) <
                MAX_BATCH_SIZE_BYTES):
             entry = self._queue.popleft()
 
             # add one for the comma that will be needed to link entries
             # together
-            entry_size = len(entry.value.encode("utf8"))
+            entry_size = len(entry.value)
             size += entry_size + 1
             self._available_bytes -= entry_size
             entries.append(entry)

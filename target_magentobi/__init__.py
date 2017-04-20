@@ -112,13 +112,10 @@ def persist_lines(magentobiclient, lines):
         message = singer.parse_message(line)
 
         if isinstance(message, singer.RecordMessage):
-            magentobi_message = {
-                'action': 'upsert',
-                'table_name': message.stream,
-                'key_names': key_properties[message.stream],
-                'sequence': int(time.time() * 1000),
-                'data': parse_record(message.stream, message.record, schemas)}
-            magentobiclient.push(magentobi_message, state)
+            magentobi_record = message.record
+            magentobi_record["keys"] = key_properties[message.stream]
+            table_name = message.stream
+            magentobiclient.push(magentobi_record, table_name, state)
             state = None
 
         elif isinstance(message, singer.StateMessage):

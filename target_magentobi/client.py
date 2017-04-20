@@ -1,6 +1,7 @@
 import os
 import logging
 import requests
+import json
 from target_magentobi.buffer import Buffer
 
 from io import StringIO
@@ -21,7 +22,6 @@ class Client(object):
                  client_id,
                  api_key,
                  table_name=None,
-                 key_names=None,
                  callback_function=None,
                  magentobi_url=DEFAULT_MAGENTOBI_URL,
                  batch_size_bytes=DEFAULT_BATCH_SIZE_BYTES,
@@ -32,32 +32,18 @@ class Client(object):
         self.client_id = client_id
         self.api_key = api_key
         self.table_name = table_name
-        self.key_names = key_names
         self.magentobi_url = magentobi_url
         self.batch_size_bytes = batch_size_bytes
         self.batch_delay_millis = batch_delay_millis
         self.callback_function = callback_function
 
-    def push(self, message, callback_arg=None):
-        """
-        message must be a dict with at least these keys:
-            action, table_name, key_names, sequence, data
-        and optionally these keys:
-            table_version
-        """
+    def push(self, magentobi_record, table_name, callback_arg=None):
+        buffer_item = {}
+        buffer_item["record"] = magentobi_record
+        buffer_item["client_id"] = self.client_id
+        buffer_item["table_name"] = table_name
 
-        if message['action'] == 'upsert':
-            message.setdefault('key_names', self.key_names)
-        else:
-            raise ValueError('Message action property must be "upsert"')
-
-        message['client_id'] = self.client_id
-        message.setdefault('table_name', self.table_name)
-
-        with StringIO() as s:
-            writer = Writer(s, "json")
-            writer.write(message)
-            self._buffer.put(s.getvalue(), callback_arg)
+        self._buffer.put(buffer_item, callback_arg)            
 
         batch = self._buffer.take(
             self.batch_size_bytes, self.batch_delay_millis)
@@ -75,22 +61,35 @@ class Client(object):
             writer.write(deserialized_entries)
             return s.getvalue()
 
-    def _magentobi_request(self, body):
-        headers = {'Authorization': 'Bearer {}'.format(self.api_key),
-                   'Content-Type': 'application/transit+json'}
-        return requests.post(self.magentobi_url, headers=headers, data=body)
+    def _magentobi_request(self, client_id, records, table_name):
+        url = self.magentobi_url + "client/" + str(client_id) + "/table/" + str(table_name) + "/data?apikey=" + str(self.api_key)
+        print(url)
+        headers = {'Content-Type': 'application/json'}
+        return requests.post(url, headers=headers, data=records)
 
     def _send_batch(self, batch):
         logger.debug("Sending batch of %s entries", len(batch))
-        body = self._serialize_entries(batch).encode('utf8')
-        response = self._magentobi_request(body)
 
-        if response.status_code < 300:
-            if self.callback_function is not None:
-                self.callback_function([x.callback_arg for x in batch])
-        else:
-            raise RuntimeError("Error sending data to the Magento BI API. {0.status_code} - {0.content}"  # nopep8
-                               .format(response))
+        records = {}
+        for entry in batch:
+            client_id = entry.value["client_id"] #never changes
+            table_name = entry.value["table_name"]
+            if table_name not in records:
+                records[table_name] = []
+            records[table_name].append(entry.value["record"])
+        for table_name, data in records.items():
+            print("sending " + str(len(data)) + " records to " + str(table_name))
+            data = json.dumps(data) #up to this point, data is a list/dict, stringify for request
+            print(data)
+            print("\n\n\n\n\n")
+            response = self._magentobi_request(client_id, data, table_name)
+
+            if response.status_code < 300:
+                if self.callback_function is not None:
+                    self.callback_function([x.callback_arg for x in batch])
+            else:
+                raise RuntimeError("Error sending data to the Magento BI API. {0.status_code} - {0.content}"  # nopep8
+                                   .format(response))
 
     def flush(self):
         while True:
