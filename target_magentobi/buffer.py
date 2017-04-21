@@ -49,13 +49,13 @@ class Buffer(object):
         size = 2
 
         while (len(self._queue) > 0 and
-               size + len(self._queue[0].value) <
+               size + len(json.dumps(self._queue[0].value)) <
                MAX_BATCH_SIZE_BYTES):
             entry = self._queue.popleft()
 
             # add one for the comma that will be needed to link entries
             # together
-            entry_size = len(entry.value)
+            entry_size = len(json.dumps(entry.value))
             size += entry_size + 1
             self._available_bytes -= entry_size
             entries.append(entry)
