@@ -64,7 +64,6 @@ class Client(object):
         for table_name, data in records.items():
             data = json.dumps(data) #up to this point, data is a list/dict, stringify for request
             response = self._magentobi_request(client_id, data, table_name)
-
             if response.status_code < 300:
                 if self.callback_function is not None:
                     self.callback_function([x.callback_arg for x in batch])

@@ -1,5 +1,6 @@
 import time
 import collections
+import json
 
 from collections import deque
 
@@ -7,8 +8,8 @@ BufferEntry = collections.namedtuple(
     'BufferEntry',
     'timestamp value callback_arg')
 
-MAX_BATCH_SIZE_BYTES = 4194304
-MAX_MESSAGES_PER_BATCH = 10000
+MAX_BATCH_SIZE_BYTES = 4194304 #hard 5MB cap imposed by MBI API
+MAX_MESSAGES_PER_BATCH = 100 #hard 100 record cap imposed by MBI API
 
 class Buffer(object):
 
@@ -27,7 +28,8 @@ class Buffer(object):
         self._queue.append(BufferEntry(timestamp=time.time()*1000,
                                        value=value,
                                        callback_arg=callback_arg))
-        self._available_bytes += len(value)
+
+        self._available_bytes += len(json.dumps(value))
 
     def take(self, batch_size_bytes, batch_delay_millis):
         if len(self._queue) == 0:
