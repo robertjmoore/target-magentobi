@@ -90,4 +90,5 @@ ENV/
 
 #configuration
 config.json
+.DS_Store
 
