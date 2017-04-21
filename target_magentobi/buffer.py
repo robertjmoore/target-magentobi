@@ -10,7 +10,6 @@ BufferEntry = collections.namedtuple(
 MAX_BATCH_SIZE_BYTES = 4194304
 MAX_MESSAGES_PER_BATCH = 10000
 
-
 class Buffer(object):
 
     def __init__(self):

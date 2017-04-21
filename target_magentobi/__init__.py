@@ -56,7 +56,7 @@ class DryRunClient(object):
         write_last_state(self.pending_callback_args)
         self.pending_callback_args = []
 
-    def push(self, message, callback_arg=None):
+    def push(self, magentobi_record, table_name, callback_arg=None):
         self.pending_callback_args.append(callback_arg)
 
         if len(self.pending_callback_args) % self.buffer_size == 0:
@@ -69,41 +69,7 @@ class DryRunClient(object):
         self.flush()
 
 
-def extend_with_default(validator_class):
-    validate_properties = validator_class.VALIDATORS["properties"]
-
-    def set_defaults(validator, properties, instance, schema):
-        for error in validate_properties(validator, properties, instance, schema):
-            yield error
-
-        for property, subschema in properties.items():
-            if "format" in subschema:
-                if subschema['format'] == 'date-time' and instance.get(property) is not None:
-                    try:
-                        instance[property] = datetime.utcfromtimestamp(
-                            rfc3339_to_timestamp(instance[property])
-                        ).replace(tzinfo=tz.tzutc())
-                    except Exception as e:
-                        raise Exception('Error parsing property {}, value {}'
-                                        .format(property, instance[property]))
-
-    return validators.extend(validator_class, {"properties": set_defaults})
-
-
-def parse_record(stream, record, schemas):
-    if stream in schemas:
-        schema = schemas[stream]
-    else:
-        schema = {}
-    o = copy.deepcopy(record)
-    v = extend_with_default(Draft4Validator)
-    v(schema, format_checker=FormatChecker()).validate(o)
-    return o
-
-
 def persist_lines(magentobiclient, lines):
-    """Takes a client and a stream and persists all the records to the gate,
-    printing the state to stdout after each batch."""
     state = None
     schemas = {}
     key_properties = {}

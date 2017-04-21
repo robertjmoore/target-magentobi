@@ -4,10 +4,6 @@ import requests
 import json
 from target_magentobi.buffer import Buffer
 
-from io import StringIO
-from transit.writer import Writer
-from transit.reader import Reader
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_BATCH_SIZE_BYTES = 4194304
@@ -50,20 +46,8 @@ class Client(object):
         if batch is not None:
             self._send_batch(batch)
 
-    def _serialize_entries(self, entries):
-        deserialized_entries = []
-        for entry in entries:
-            reader = Reader("json")
-            deserialized_entries.append(reader.read(StringIO(entry.value)))
-
-        with StringIO() as s:
-            writer = Writer(s, "json")
-            writer.write(deserialized_entries)
-            return s.getvalue()
-
     def _magentobi_request(self, client_id, records, table_name):
         url = self.magentobi_url + "client/" + str(client_id) + "/table/" + str(table_name) + "/data?apikey=" + str(self.api_key)
-        print(url)
         headers = {'Content-Type': 'application/json'}
         return requests.post(url, headers=headers, data=records)
 
@@ -78,10 +62,7 @@ class Client(object):
                 records[table_name] = []
             records[table_name].append(entry.value["record"])
         for table_name, data in records.items():
-            print("sending " + str(len(data)) + " records to " + str(table_name))
             data = json.dumps(data) #up to this point, data is a list/dict, stringify for request
-            print(data)
-            print("\n\n\n\n\n")
             response = self._magentobi_request(client_id, data, table_name)
 
             if response.status_code < 300:
@@ -104,16 +85,3 @@ class Client(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.flush()
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-
-    with Client(int(os.environ['MAGENTOBI_CLIENT_ID']),
-                os.environ['MAGENTOBI_TOKEN'],
-                callback_function=print) as c:
-        for i in range(1, 10):
-            c.push({'action': 'upsert',
-                    'table_name': 'test_table',
-                    'key_names': ['id'],
-                    'sequence': i,
-                    'data': {'id': i, 'value': 'abc'}}, i)
