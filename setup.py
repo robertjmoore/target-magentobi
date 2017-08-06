@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='target-magentobi',
-      version='0.1.0',
+      version='0.1.1',
       description='Singer.io target for the Magento Business Intelligence API',
       author='Robert J. Moore',
       url='http://www.robertjmoore.com/',
@@ -12,6 +12,7 @@ setup(name='target-magentobi',
       install_requires=[
           'jsonschema',
           'mock==2.0.0',
+          'requests==2.13.0',
           'singer-python>=0.2.1',
           'strict-rfc3339',
       ],
